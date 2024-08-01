@@ -9,6 +9,7 @@ import { theme } from '../constants/theme'
 import Input from '../components/Input'
 import Icon from '../assets/icons'
 import Button from '../components/Button'
+import { supabase } from '../lib/supabase'
 
 const Login = () => {
     const router = useRouter()
@@ -16,17 +17,27 @@ const Login = () => {
     const passwordRef = useRef()
     const [loading, setLoading] = useState(false)
 
-    const onSubmit = () => {
+    const onSubmit = async () => {
         if (!emailRef.current || !passwordRef.current) {
             Alert.alert('Login', 'Please fill all the fields!')
             return
         }
+
+        // trim fields
+        let email = emailRef.current.trim()
+        let password = passwordRef.current.trim()
+
         setLoading(true)
 
-        setTimeout(() => {
-            setLoading(false)
-            router.push('/home')
-        }, 2000)
+        const {error } = await supabase.auth.signInWithPassword({ email, password })
+        console.log("🚀 ~ onSubmit ~ error:", error)
+
+        setLoading(false)
+
+        if(error) {
+            Alert.alert('Login', error.message)
+            return
+        }
     }
 
     return (

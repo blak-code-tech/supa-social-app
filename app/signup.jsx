@@ -9,6 +9,7 @@ import { theme } from '../constants/theme'
 import Input from '../components/Input'
 import Icon from '../assets/icons'
 import Button from '../components/Button'
+import { supabase } from '../lib/supabase'
 
 const SignUp = () => {
     const router = useRouter()
@@ -17,17 +18,40 @@ const SignUp = () => {
     const passwordRef = useRef()
     const [loading, setLoading] = useState(false)
 
-    const onSubmit = () => {
+    const onSubmit = async() => {
         if (!emailRef.current || !passwordRef.current || !nameRef.current) {
             Alert.alert('Sign Up', 'Please fill all the fields!')
             return
         }
+        
+        // Trim fields
+        let name = nameRef.current.trim()
+        let email = emailRef.current.trim()
+        let password = passwordRef.current.trim()
+        
         setLoading(true)
 
-        setTimeout(() => {
-            setLoading(false)
-            router.push('/home')
-        }, 2000)
+        const {data:{session}, error} = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name
+                }
+            }
+        })
+
+        setLoading(false)
+
+        // console.log("session:", session)
+        // console.log("error:", error)
+        if(error) {
+            Alert.alert('Sign Up', error.message)
+            return
+        }
+
+        Alert.alert('Sign Up', 'Account created successfully!')
+
     }
 
     return (
@@ -48,8 +72,8 @@ const SignUp = () => {
 
                     <Input
                         placeholder="Enter your name"
-                        onChangeText={(value) => emailRef.current = value}
-                        icon={<Icon name={'mail'} size={26} strokeWidth={1.6} />} />
+                        onChangeText={(value) => nameRef.current = value}
+                        icon={<Icon name={'user'} size={26} strokeWidth={1.6} />} />
                     
                     <Input
                         placeholder="Enter your email"
