@@ -1,18 +1,55 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 import ScreenWrapper from '../../components/ScreenWrapper'
 import { useAuth } from '../../contexts/AuthContext'
-import { supabase } from '../../lib/supabase'
-import Button from '../../components/Button'
 import { hp, wp } from '@/helpers/common'
 import { theme } from '@/constants/theme'
 import Icon from '../../assets/icons'
 import { useRouter } from 'expo-router'
 import Avatar from '../../components/Avatar'
+import { fetchPosts } from '../../services/PostService'
+import PostCard from '../../components/PostCard'
+import Loading from '../../components/Loading'
+import { supabase } from '@/lib/supabase'
+import {getUserData} from "../../services/UserService"
 
+let limit = 0;
 const Home = () => {
-    const { setAuth,user } = useAuth()
+    const { setAuth, user } = useAuth()
     const router = useRouter()
+
+    const [posts, setPosts] = React.useState([])
+
+    React.useEffect(() => {
+        let postChannel = supabase
+            .channel('posts')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, handlePostEvent)
+            .subscribe();
+        getPosts()
+
+        return () => {
+            supabase.removeChannel(postChannel)
+        }
+    }, [])
+
+    const handlePostEvent = async (payload) => {
+        if (payload.eventType === 'INSERT' && payload?.new?.id) {
+            let newPost = { ...payload.new }
+            let res = await getUserData(newPost?.userId)
+            newPost.user = res.success ? res.data : {}
+            setPosts((prev) => [newPost, ...prev])
+            getPosts()
+        }
+    }
+
+    const getPosts = async () => {
+        limit = limit + 10
+        let res = await fetchPosts(limit)
+
+        if (res.success) {
+            setPosts(res.data)
+        }
+    }
 
     return (
         <ScreenWrapper bg={"white"}>
@@ -29,10 +66,23 @@ const Home = () => {
                             <Icon name="plus" size={hp(3.2)} strokeWidth={2} color={theme.colors.text} />
                         </Pressable>
                         <Pressable onPress={() => router.push('/profile')}>
-                            <Avatar uri={user?.image} size={hp(4.3)} rounded={theme.radius.sm} style={{borderWidth:2}} />
+                            <Avatar uri={user?.image} size={hp(4.3)} rounded={theme.radius.sm} style={{ borderWidth: 2 }} />
                         </Pressable>
                     </View>
                 </View>
+
+                <FlatList
+                    data={posts}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.listStyle}
+                    keyExtractor={item => item.id.toString()}
+                    renderItem={({ item }) => <PostCard item={item} currentUser={user} router={router} />}
+                    ListFooterComponent={() => (
+                        <View style={{ marginVertical: posts.length === 0 ? 200 : 30 }}>
+                            <Loading />
+                        </View>
+                    )}
+                />
             </View>
         </ScreenWrapper>
     )
