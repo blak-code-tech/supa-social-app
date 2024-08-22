@@ -29,7 +29,7 @@ const tagsStyles = {
     }
 }
 
-const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
+const PostCard = ({ item, currentUser, router, hasShadow = true,showMoreIcon=true }) => {
 
     const [likes, setLikes] = React.useState([])
     const [loading, setLoading] = React.useState(false)
@@ -52,6 +52,7 @@ const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
     const createdAt = moment(item?.created_at).format("MMM D")
 
     const openPostDetails = () => {
+        if(!showMoreIcon) return null
         router.push({pathname:"/post-details",params:{postId:item.id}})
     }
 
@@ -104,9 +105,9 @@ const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
                     </View>
                 </View>
 
-                <TouchableOpacity onPress={openPostDetails}>
+                {showMoreIcon && <TouchableOpacity onPress={openPostDetails}>
                     <Icon name="threeDotsHorizontal" color={theme.colors.text} strokeWidth={3} size={hp(3.4)} />
-                </TouchableOpacity>
+                </TouchableOpacity>}
             </View>
 
             {/* Post body */}
@@ -160,7 +161,7 @@ const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
                     <TouchableOpacity onPress={openPostDetails}>
                         <Icon name="comment" color={theme.colors.textLight} size={24} />
                     </TouchableOpacity>
-                    <Text style={styles.count}>0</Text>
+                    <Text style={styles.count}>{item?.comments[0]?.count}</Text>
                 </View>
                 <View style={styles.footerButton}>
                     {loading ? (<Loading size='small' /> ):

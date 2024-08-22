@@ -21,27 +21,53 @@ const Home = () => {
     const [posts, setPosts] = React.useState([])
     const [hasMore, setHasMore] = React.useState(true)
 
+    const handleNewComment = async (payload) => {
+        console.log("🚀 ~ handleNewComment ~ payload:", payload)
+        if (payload.new) {
+            let newComment = { ...payload.new }
+
+            let res = await getUserData(newComment?.userId)
+
+            newComment.user = res.success ? res.data : {}
+
+            setPosts((prev) => prev.find((post) => post.id === newComment.postId).comments[0].count += 1)
+        }
+    }
+
+    const handlePostEvent = async (payload) => {
+        console.log("🚀 ~ handlePostEvent ~ payload:", payload)
+        if (payload.eventType === 'INSERT' && payload?.new?.id) {
+            let newPost = { ...payload.new }
+            let res = await getUserData(newPost?.userId)
+            newPost.user = res.success ? res.data : {}
+            newPost.comments = [{ count: 0 }]
+            newPost.postLikes = []
+            setPosts((prev) => [newPost, ...prev])
+            getPosts()
+        }
+    }
+
     React.useEffect(() => {
         let postChannel = supabase
             .channel('posts')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, handlePostEvent)
             .subscribe();
+        
+        let commentsChannel = supabase
+            .channel('comments')
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'comments'
+            }, handleNewComment)
+            .subscribe();
+        
         // getPosts()
 
         return () => {
-            supabase.removeChannel(postChannel)
+            supabase.removeAllChannels([postChannel, commentsChannel])
         }
     }, [])
-
-    const handlePostEvent = async (payload) => {
-        if (payload.eventType === 'INSERT' && payload?.new?.id) {
-            let newPost = { ...payload.new }
-            let res = await getUserData(newPost?.userId)
-            newPost.user = res.success ? res.data : {}
-            setPosts((prev) => [newPost, ...prev])
-            getPosts()
-        }
-    }
 
     const getPosts = async () => {
         if (!hasMore) return null
