@@ -11,7 +11,7 @@ import { fetchPosts } from '../../services/PostService'
 import PostCard from '../../components/PostCard'
 import Loading from '../../components/Loading'
 import { supabase } from '@/lib/supabase'
-import {getUserData} from "../../services/UserService"
+import { getUserData } from "../../services/UserService"
 
 let limit = 0;
 const Home = () => {
@@ -19,13 +19,14 @@ const Home = () => {
     const router = useRouter()
 
     const [posts, setPosts] = React.useState([])
+    const [hasMore, setHasMore] = React.useState(true)
 
     React.useEffect(() => {
         let postChannel = supabase
             .channel('posts')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, handlePostEvent)
             .subscribe();
-        getPosts()
+        // getPosts()
 
         return () => {
             supabase.removeChannel(postChannel)
@@ -43,10 +44,12 @@ const Home = () => {
     }
 
     const getPosts = async () => {
-        limit = limit + 10
+        if (!hasMore) return null
+        limit = limit + 4
         let res = await fetchPosts(limit)
 
         if (res.success) {
+            if (posts.length === res.data.length) setHasMore(false)
             setPosts(res.data)
         }
     }
@@ -76,12 +79,19 @@ const Home = () => {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.listStyle}
                     keyExtractor={item => item.id.toString()}
+                    onEndReached={() => getPosts()}
+                    onEndReachedThreshold={0}
                     renderItem={({ item }) => <PostCard item={item} currentUser={user} router={router} />}
-                    ListFooterComponent={() => (
+                    ListFooterComponent={() => hasMore ? (
                         <View style={{ marginVertical: posts.length === 0 ? 200 : 30 }}>
                             <Loading />
                         </View>
-                    )}
+                    ) :
+                        (
+                            <View style={{ marginVertical: 30 }}>
+                                <Text style={styles.noPosts}>No more posts</Text>
+                            </View>
+                        )}
                 />
             </View>
         </ScreenWrapper>

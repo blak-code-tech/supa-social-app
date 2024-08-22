@@ -1,14 +1,16 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import React from 'react'
+import { Alert, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import React, { useEffect } from 'react'
 import { theme } from '@/constants/theme'
-import { hp, wp } from '@/helpers/common'
+import { hp, stripHtmlTags, wp } from '@/helpers/common'
 import Avatar from './Avatar'
 import moment from 'moment'
 import Icon from '@/assets/icons'
 import RenderHtml from 'react-native-render-html';
 import { Image } from 'expo-image'
-import { getSupabaseFileUrl } from '@/services/ImageService'
+import { downloadFile, getSupabaseFileUrl } from '@/services/ImageService'
+import { createPostLike, removePostLike } from '@/services/PostService'
 import { Video } from "expo-av"
+import Loading from './Loading'
 
 const textStyle = {
     color: theme.colors.dark,
@@ -29,6 +31,13 @@ const tagsStyles = {
 
 const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
 
+    const [likes, setLikes] = React.useState([])
+    const [loading, setLoading] = React.useState(false)
+
+    useEffect(() => {
+        setLikes(item?.postLikes)
+    }, [])
+
     const shadowStyle = {
         shadowColor: "#000",
         shadowOffset: {
@@ -43,9 +52,46 @@ const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
     const createdAt = moment(item?.created_at).format("MMM D")
 
     const openPostDetails = () => {
+        router.push({pathname:"/post-details",params:{postId:item.id}})
     }
-    const likes = []
-    const liked = false;
+
+    const onLikePress = async () => {
+        if (liked) {
+            setLikes(likes.filter((like) => like.userId !== currentUser?.id))
+            let res = await removePostLike(item.id, currentUser?.id)
+            console.log("🚀 ~ onLikePress ~ res:", res)
+            if (!res.success) {
+                Alert.alert("Post", "Something went wrong, please try again later")
+            }
+        }
+        else {
+            let data = {
+                userId: currentUser?.id,
+                postId: item.id
+            }
+            setLikes([...likes, data])
+            let res = await createPostLike(data)
+            console.log("🚀 ~ onLikePress ~ res:", res)
+
+            if (!res.success) {
+                Alert.alert("Post", "Something went wrong, please try again later")
+            }
+        }
+    }
+
+    const onSharePress = async () => {
+        let content = { message: stripHtmlTags(item?.body) }
+        if (item?.file) {
+            setLoading(true)
+            // download and share url
+            const url = await downloadFile(getSupabaseFileUrl(item?.file).uri)
+            setLoading(false)
+            content.url = url
+        }
+        let res = await Share.share(content)
+    }
+
+    const liked = likes.filter((like) => like.userId === currentUser?.id).length > 0;
     return (
         <View style={[styles.container, hasShadow && shadowStyle]}>
             <View style={styles.header}>
@@ -105,21 +151,23 @@ const PostCard = ({ item, currentUser, router, hasShadow = true }) => {
             {/* Like, comment, share */}
             <View style={styles.footer}>
                 <View style={styles.footerButton}>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={onLikePress}>
                         <Icon name="heart" fill={liked ? theme.colors.rose : "transparent"} color={liked ? theme.colors.rose : theme.colors.textLight} size={24} />
                     </TouchableOpacity>
                     <Text style={styles.count}>{likes?.length}</Text>
                 </View>
                 <View style={styles.footerButton}>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={openPostDetails}>
                         <Icon name="comment" color={theme.colors.textLight} size={24} />
                     </TouchableOpacity>
                     <Text style={styles.count}>0</Text>
                 </View>
                 <View style={styles.footerButton}>
-                    <TouchableOpacity>
-                        <Icon name="share" color={theme.colors.textLight} size={24} />
-                    </TouchableOpacity>
+                    {loading ? (<Loading size='small' /> ):
+
+                        (<TouchableOpacity onPress={onSharePress}>
+                            <Icon name="share" color={theme.colors.textLight} size={24} />
+                        </TouchableOpacity>)}
                 </View>
             </View>
         </View>

@@ -9,3 +9,10 @@ export const hp = percentage => {
 export const wp = percentage => {
     return (percentage * deviceWidth) / 100
 }
+
+export const stripHtmlTags = str => {
+    if (str) {
+        const regex = /(<([^>]+)>)/gi
+        return str.replace(regex, '')
+    }
+}

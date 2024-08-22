@@ -18,6 +18,24 @@ export const getSupabaseFileUrl = (path) => {
     return null
 }
 
+export const downloadFile = async (url) => { 
+    try {
+        
+        const { uri } = await FileSystem.downloadAsync(url, getLocalFilteredPath(url))
+
+        return uri
+        
+    } catch (error) {
+        console.log("🚀 ~ downloadFile ~ error:", error)
+        return null;
+    }
+}
+
+export const getLocalFilteredPath = (url) => {
+    const fileName = url.split('/').pop()
+    return `${FileSystem.cacheDirectory}${fileName}`
+}
+
 export const uploadFile = async (folderName, fileUri, isImage = true) => {
     try {
         let fileName = getFilePath(folderName, isImage)
